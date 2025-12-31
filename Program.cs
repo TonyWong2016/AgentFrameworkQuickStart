@@ -1,13 +1,5 @@
 ﻿using AgentFrameworkQuickStart;
-using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using ModelContextProtocol.Server;
-using OpenAI;
-using System.ClientModel;
-using System.ComponentModel;
 using System.Text;
 
 Console.OutputEncoding = Encoding.UTF8; // 👈 关键！
@@ -28,8 +20,12 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 
 //await new PersistingAndResumingAgent(modelProvider).PersistAndResumeDemo();
 
-var agent = new InMemoryChatHistoryAgent(modelProvider, "inmem_thread.json");
-await agent.RunInteractiveChatAsync();
+//var agent = new InMemoryChatHistoryAgent(modelProvider, "inmem_thread.json");
+//await agent.RunInteractiveChatAsync();
+
+var carAgent = new CarMasterAgent(modelProvider);
+await carAgent.RunMasterWithToolsAsync();
+
 public class ModelProvider
 {
     public string ApiKey { get; init; } = string.Empty;
