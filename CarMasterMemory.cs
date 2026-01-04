@@ -107,7 +107,7 @@ namespace AgentFrameworkQuickStart
                 catch (Exception ex)
                 {
                     // 调试用
-                    // Console.WriteLine($"[DEBUG] 提取失败: {ex.Message}");
+                     Console.WriteLine($"[DEBUG] 提取失败: {ex.Message}");
                 }
             }
         }
@@ -118,6 +118,7 @@ namespace AgentFrameworkQuickStart
     public class CarMasterAgent : BaseAgent
     {
         private readonly VectorStore _vectorStore = new InMemoryVectorStore();
+
 
         public CarMasterAgent(ModelProvider modelProvider) : base(modelProvider) { }
 

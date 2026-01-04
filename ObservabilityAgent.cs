@@ -27,12 +27,12 @@ namespace AgentFrameworkQuickStart
                new ApiKeyCredential(modelProvider.ApiKey),
                new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                .GetChatClient(modelProvider.ModelId)
-               .CreateAIAgent(instructions: "你是个脱口秀大师，可以很轻松的逗笑大家", name: "脱口秀大师")
+               .CreateAIAgent(instructions: "你是个资深汽车大师，了解很多汽车知识，包括配置，价格，驾驶体验的等等，回复内容尽可能简短高效，突出优缺点，给出综合购买建议，避免长篇大论", name: "汽车大师")
                .AsBuilder()
                .UseOpenTelemetry(sourceName: "agent-telemetry-source")
                .Build();
 
-            await foreach (var update in agent.RunStreamingAsync("来一段简短的脱口秀表演"))
+            await foreach (var update in agent.RunStreamingAsync("介绍一下新款宝马X3 25L这款车"))
             {
                 Console.Write(update);
             }

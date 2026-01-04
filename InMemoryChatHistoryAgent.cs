@@ -43,15 +43,15 @@ public class InMemoryChatHistoryAgent
         AgentThread thread;
         if (File.Exists(_threadStatePath))
         {
-            Console.WriteLine("🔍 检测到已保存的对话状态，正在恢复...");
+            Console.WriteLine("检测到已保存的对话状态，正在恢复...");
             string json = await File.ReadAllTextAsync(_threadStatePath);
             var element = JsonSerializer.Deserialize<JsonElement>(json, JsonSerializerOptions.Web);
             thread = agent.DeserializeThread(element, JsonSerializerOptions.Web);
-            Console.WriteLine("✅ 对话已恢复！");
+            Console.WriteLine("对话已恢复！");
         }
         else
         {
-            Console.WriteLine("🆕 开始新对话（使用 InMemory 向量存储记录历史）...");
+            Console.WriteLine("开始新对话（使用 InMemory 向量存储记录历史）...");
             thread = agent.GetNewThread();
         }
 
@@ -68,7 +68,7 @@ public class InMemoryChatHistoryAgent
                 // 保存线程状态（仅元数据，消息存在 vector store）
                 var state = thread.Serialize(JsonSerializerOptions.Web).GetRawText();
                 await File.WriteAllTextAsync(_threadStatePath, state);
-                Console.WriteLine("💾 线程状态已保存，再见！");
+                Console.WriteLine("线程状态已保存，再见！");
                 break;
             }
 
@@ -77,18 +77,18 @@ public class InMemoryChatHistoryAgent
                 // 清除：删除状态文件 + 新建线程（旧消息仍留在 vector store，但无法访问）
                 if (File.Exists(_threadStatePath)) File.Delete(_threadStatePath);
                 thread = agent.GetNewThread();
-                Console.WriteLine("🧹 已开启全新对话（旧历史不可见）");
+                Console.WriteLine("已开启全新对话（旧历史不可见）");
                 continue;
             }
 
             try
             {
                 var response = await agent.RunAsync(input, thread);
-                Console.WriteLine($"\n🤖 助手: {response}");
+                Console.WriteLine($"\n助手: {response}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 错误: {ex.Message}");
+                Console.WriteLine($"错误: {ex.Message}");
                 continue;
             }
 
@@ -120,7 +120,7 @@ public class InMemoryChatHistoryAgent
         {
             ThreadDbKey ??= Guid.NewGuid().ToString("N");
 
-            AnsiConsole.MarkupLine($"💾 [cyan]【Add】 ThreadKey: {ThreadDbKey}, 消息数: {messages.Count()}[/]");
+            AnsiConsole.MarkupLine($"[cyan]【Add】 ThreadKey: {ThreadDbKey}, 消息数: {messages.Count()}[/]");
 
             var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
             await collection.EnsureCollectionExistsAsync(cancellationToken);
@@ -143,7 +143,7 @@ public class InMemoryChatHistoryAgent
             if (string.IsNullOrEmpty(ThreadDbKey))
                 return [];
 
-            AnsiConsole.MarkupLine($"📥 [yellow]【Get】 从 ThreadKey: {ThreadDbKey} 读取消息[/]");
+            AnsiConsole.MarkupLine($"[yellow]【Get】 从 ThreadKey: {ThreadDbKey} 读取消息[/]");
 
 
             var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
