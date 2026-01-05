@@ -27,26 +27,27 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 //var agent = new InMemoryChatHistoryAgent(modelProvider, "inmem_thread.json");
 //await agent.RunInteractiveChatAsync();
 
-//var carAgent = new CarMasterAgent(modelProvider);
-//await carAgent.RunMasterWithToolsAsync();
+var carAgent = new CarMasterAgent(modelProvider);
+//await carAgent.RunMasterStreamAsync();
+await carAgent.RunMasterWithToolsAsync();
 
 // 2. 实例化工作流（与InMemoryChatHistoryAgent模式一致）
-var carMasterWorkflow = new CarMasterSequentialWorkflow(modelProvider);
+//var carMasterWorkflow = new CarMasterSequentialWorkflow(modelProvider);
 
-// 3. 使用Spectre.Console创建交互界面
-AnsiConsole.Write(new FigletText("Car Master").LeftJustified().Color(Color.Green));
-AnsiConsole.MarkupLine("[yellow]欢迎使用汽车大师智能助手！请描述您的车辆问题。[/]");
-AnsiConsole.MarkupLine("[grey](输入 'exit' 退出程序)[/]");
+//// 3. 使用Spectre.Console创建交互界面
+//AnsiConsole.Write(new FigletText("Car Master").LeftJustified().Color(Color.Green));
+//AnsiConsole.MarkupLine("[yellow]欢迎使用汽车大师智能助手！请描述您的车辆问题。[/]");
+//AnsiConsole.MarkupLine("[grey](输入 'exit' 退出程序)[/]");
 
-while (true)
-{
-    var userQuestion = AnsiConsole.Ask<string>("[bold cyan]您的问题：[/]");
-    if (userQuestion.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+//while (true)
+//{
+//    var userQuestion = AnsiConsole.Ask<string>("[bold cyan]您的问题：[/]");
+//    if (userQuestion.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
 
-    // 4. 执行工作流
-    await carMasterWorkflow.ExecuteAsync(userQuestion);
-    AnsiConsole.WriteLine(); // 空行分隔每次对话
-}
+//    // 4. 执行工作流
+//    await carMasterWorkflow.ExecuteAsync(userQuestion);
+//    AnsiConsole.WriteLine(); // 空行分隔每次对话
+//}
 
 //await new SequentialFlow().Run();
 
