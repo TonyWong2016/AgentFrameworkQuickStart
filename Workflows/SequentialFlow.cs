@@ -21,13 +21,23 @@ namespace AgentFrameworkQuickStart.Workflows
             var workflow = builder.Build();
 
             // Execute the workflow with input data
-            await using Run run = await InProcessExecution.RunAsync(workflow, "Hello, World!");
-            foreach (WorkflowEvent evt in run.NewEvents)
+            //await using Run run = await InProcessExecution.RunAsync(workflow, "Hello, World!");
+            //foreach (WorkflowEvent evt in run.NewEvents)
+            //{
+            //    if (evt is ExecutorCompletedEvent executorComplete)
+            //    {
+            //        Console.WriteLine($"{executorComplete.ExecutorId}: {executorComplete.Data}");
+            //    }
+            //}
+            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, input: "Hello, World!");
+            await foreach (WorkflowEvent evt in run.WatchStreamAsync())
             {
-                if (evt is ExecutorCompletedEvent executorComplete)
+                if (evt is ExecutorCompletedEvent executorCompleted)
                 {
-                    Console.WriteLine($"{executorComplete.ExecutorId}: {executorComplete.Data}");
+                    //await Task.Delay(300);
+                    Console.WriteLine($"{executorCompleted.ExecutorId}: {executorCompleted.Data}");
                 }
+
             }
         }
     }

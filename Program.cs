@@ -44,13 +44,15 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 //    var userQuestion = AnsiConsole.Ask<string>("[bold cyan]您的问题：[/]");
 //    if (userQuestion.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
 
-    // 4. 执行工作流
-    //await carMasterWorkflow.ExecuteAsync(userQuestion);
-    await carMasterWorkflow.RunCarMasterWorkflowFinalFinalAsync(userQuestion);
-    AnsiConsole.WriteLine(); // 空行分隔每次对话
-}
+//    // 4. 执行工作流
+//    await carMasterWorkflow.ExecuteAsync(userQuestion);
+//    AnsiConsole.WriteLine(); // 空行分隔每次对话
+//}
 
-await new SequentialFlow().Run();
+//简单工作流
+//await new SequentialFlow().Run();
+string input = Console.ReadLine()?? "帮我把这段话翻译成英语：老铁 666";
+await new AgentsInWorkFlow(modelProvider).RunBranchingWorkflow(input);
 
 public class ModelProvider
 {
