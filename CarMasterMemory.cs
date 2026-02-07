@@ -6,9 +6,7 @@ using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.InMemory;
 using OpenAI;
 using Spectre.Console;
-using System;
 using System.ClientModel;
-using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 
@@ -227,7 +225,7 @@ namespace AgentFrameworkQuickStart
             var agent = chatClient.CreateAIAgent(new ChatClientAgentOptions
             {
                 Name = "汽车大师",
-                Description = "一个从业20年的专业汽车顾问，擅长结合用户画像进行精准推荐。",
+                Description = "一个从业20年的专业汽车顾问，擅长结合用户画像进行精准推荐。注意，如果用户需求描述包含预算等信息，优先执行工具进行查询",
 
                 // 关键修正：将推理相关的配置放入 ChatOptions
                 ChatOptions = new ChatOptions

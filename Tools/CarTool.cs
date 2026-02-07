@@ -22,6 +22,7 @@ namespace AgentFrameworkQuickStart.Tools
             [Description("能源类型（如：纯电、燃油、混动）")] string energyType,
             [Description("需求关键词列表")] string[] keywords)
         {
+            Console.WriteLine();
             AnsiConsole.MarkupLine("[yellow]命中汽车搜索工具（SearchCars）[/]");
             // 模拟数据库数据
             var db = new List<CarModel>
