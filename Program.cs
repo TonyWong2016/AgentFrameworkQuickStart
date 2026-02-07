@@ -27,8 +27,9 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 //var agent = new InMemoryChatHistoryAgent(modelProvider, "inmem_thread.json");
 //await agent.RunInteractiveChatAsync();
 
-var carAgent = new CarMasterAgent(modelProvider);
-await carAgent.RunMasterWithToolsAsync();
+//var carAgent = new CarMasterAgent(modelProvider);
+//await carAgent.RunMasterStreamAsync();
+//await carAgent.RunMasterWithToolsAsync();
 
 // 2. 实例化工作流（与InMemoryChatHistoryAgent模式一致）
 //var carMasterWorkflow = new CarMasterSequentialWorkflow(modelProvider);
@@ -43,12 +44,13 @@ await carAgent.RunMasterWithToolsAsync();
 //    var userQuestion = AnsiConsole.Ask<string>("[bold cyan]您的问题：[/]");
 //    if (userQuestion.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
 
-//    // 4. 执行工作流
-//    await carMasterWorkflow.ExecuteAsync(userQuestion);
-//    AnsiConsole.WriteLine(); // 空行分隔每次对话
-//}
+    // 4. 执行工作流
+    //await carMasterWorkflow.ExecuteAsync(userQuestion);
+    await carMasterWorkflow.RunCarMasterWorkflowFinalFinalAsync(userQuestion);
+    AnsiConsole.WriteLine(); // 空行分隔每次对话
+}
 
-//await new SequentialFlow().Run();
+await new SequentialFlow().Run();
 
 public class ModelProvider
 {

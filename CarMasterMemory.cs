@@ -165,7 +165,7 @@ namespace AgentFrameworkQuickStart
             var agent = chatClient.CreateAIAgent(new ChatClientAgentOptions
             {
                 Name = "汽车大师",
-                Description = "你是一个毒舌但专业的汽车大师。你会根据后台画像（预算、需求）给出精准建议。",
+                Description = "你是一个既毒舌又专业的汽车大师。你会根据后台画像（预算、需求）给出精准建议。重点突出优缺点，有没有排面，不要长篇大论，扯一些没用的。",
                 // 1. 对话记录存入向量数据库（你写的逻辑）
                 ChatMessageStoreFactory = ctx => new VectorChatMessageStore(_vectorStore, ctx.SerializedState, ctx.JsonSerializerOptions),
                 // 2. 画像提炼存入上下文提供者（我优化的逻辑）
@@ -225,15 +225,15 @@ namespace AgentFrameworkQuickStart
             var agent = chatClient.CreateAIAgent(new ChatClientAgentOptions
             {
                 Name = "汽车大师",
-                Description = "一个从业20年的专业汽车顾问，擅长结合用户画像进行精准推荐。注意，如果用户需求描述包含预算等信息，优先执行工具进行查询",
+                Description = "一个从业20年的专业汽车顾问，擅长结合用户画像进行精准推荐。如果用户询问具体推荐，请优先调用工具",
 
                 // 关键修正：将推理相关的配置放入 ChatOptions
                 ChatOptions = new ChatOptions
                 {
-                    Instructions = "你是一个专业的汽车推荐助手。请优先参考后台画像。如果用户询问具体推荐，请调用 SearchCars 工具。",
+                    //Instructions = "如果用户询问具体推荐，请优先调用 SearchCars 工具。",
                     Tools = [AIFunctionFactory.Create(new CarTool().SearchCars)]
                 },
-
+                
                 // 记忆逻辑保持在顶层，因为它们属于 Agent 的生命周期管理
                 AIContextProviderFactory = ctx => new CarMasterMemory(
                     chatClient.AsIChatClient(),
