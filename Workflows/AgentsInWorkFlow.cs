@@ -2,8 +2,11 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using OpenAI;
+using OpenAI.Chat;
 using Spectre.Console;
 using System.ClientModel;
+using System.Text.Json;
+using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 
 namespace AgentFrameworkQuickStart.Workflows
 {
@@ -98,6 +101,49 @@ namespace AgentFrameworkQuickStart.Workflows
             };
 
             return new ChatClientAgent(chatClient, instructions, options.Name,options.Description);
+        }
+
+        public async Task ConcurrentRun()
+        {
+            var openAIClient = new OpenAIClient(
+                 new ApiKeyCredential(_modelProvider.ApiKey),
+                 new OpenAIClientOptions { Endpoint = new Uri(_modelProvider.Endpoint) }
+             );
+
+            var chatClient = openAIClient.GetChatClient(_modelProvider.ModelId).AsIChatClient();
+
+            // Create the executors
+            ChatClientAgent physicist = new(
+                chatClient,
+                name: "物理学家",
+                instructions: "你是物理学专家。你从物理角度回答问题."
+            );
+            ChatClientAgent chemist = new(
+                chatClient,
+                name: "化学家",
+                instructions: "你是化学专家。你从化学角度回答问题."
+            );
+
+            var startExecutor = new ConcurrentStartExecutor();
+            var aggregationExecutor = new ConcurrentAggregationExecutor();
+
+            // Build the workflow by adding executors and connecting them
+            var workflow = new WorkflowBuilder(startExecutor)
+                .AddFanOutEdge(startExecutor, [physicist, chemist])
+                .AddFanInEdge([physicist, chemist], aggregationExecutor)
+                .WithOutputFrom(aggregationExecutor)
+                .Build();
+
+            // Execute the workflow in streaming mode
+            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, input: "今天天气如何？");
+            await foreach (WorkflowEvent evt in run.WatchStreamAsync())
+            {
+                Console.WriteLine(evt);
+                if (evt is WorkflowOutputEvent output)
+                {
+                    Console.WriteLine($"Workflow completed with results:\n{output.Data}");
+                }
+            }
         }
 
 
@@ -205,4 +251,65 @@ namespace AgentFrameworkQuickStart.Workflows
         // 对应官网案例中的 AnalysisResult
         public string TargetLanguage { get; set; } = string.Empty;
     }
+
+    /// <summary>
+    /// Executor that starts the concurrent processing by sending messages to the agents.
+    /// </summary>
+    internal sealed partial class ConcurrentStartExecutor : Executor<string>
+    {
+        public ConcurrentStartExecutor() : base("ConcurrentStartExecutor")
+        {
+        }
+
+        /// <summary>
+        /// Starts the concurrent processing by broadcasting the message and a turn token.
+        /// </summary>
+        public override async ValueTask HandleAsync(string message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            // 广播用户消息给所有监听者（通常是多个 Agent）
+            await context.SendMessageAsync(new ChatMessage(ChatRole.User, message), cancellationToken: cancellationToken);
+
+            // 发送 TurnToken 触发所有监听者开始处理
+            await context.SendMessageAsync(new TurnToken(emitEvents: true), cancellationToken: cancellationToken);
+        }
+
+        // 必须重写，即使不使用路由
+        protected override RouteBuilder ConfigureRoutes(RouteBuilder routeBuilder)
+        {
+            // 返回原 builder，表示无额外路由配置
+            return routeBuilder;
+        }
+    }
+
+
+
+    /// <summary>
+    /// Executor that aggregates the results from the concurrent agents.
+    /// </summary>
+    internal sealed class ConcurrentAggregationExecutor() :
+        Executor<List<ChatMessage>>("ConcurrentAggregationExecutor")
+    {
+        private readonly List<ChatMessage> _messages = [];
+
+        /// <summary>
+        /// Handles incoming messages from the agents and aggregates their responses.
+        /// </summary>
+        /// <param name="message">The messages from the agent</param>
+        /// <param name="context">Workflow context for accessing workflow services and adding events</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests.
+        /// The default is <see cref="CancellationToken.None"/>.</param>
+        /// <returns>A task representing the asynchronous operation</returns>
+        public override async ValueTask HandleAsync(List<ChatMessage> message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            this._messages.AddRange(message);
+
+            if (this._messages.Count == 2)
+            {
+                var formattedMessages = string.Join(Environment.NewLine, this._messages.Select(m => $"{m.AuthorName}: {m.Text}"));
+                await context.YieldOutputAsync(formattedMessages, cancellationToken);
+            }
+        }
+    }
+
+
 }

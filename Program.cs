@@ -34,7 +34,7 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 // 2. 实例化工作流（与InMemoryChatHistoryAgent模式一致）
 //var carMasterWorkflow = new CarMasterSequentialWorkflow(modelProvider);
 
-//// 3. 使用Spectre.Console创建交互界面
+////// 3. 使用Spectre.Console创建交互界面
 //AnsiConsole.Write(new FigletText("Car Master").LeftJustified().Color(Color.Green));
 //AnsiConsole.MarkupLine("[yellow]欢迎使用汽车大师智能助手！请描述您的车辆问题。[/]");
 //AnsiConsole.MarkupLine("[grey](输入 'exit' 退出程序)[/]");
@@ -51,8 +51,10 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 
 //简单工作流
 //await new SequentialFlow().Run();
-string input = Console.ReadLine()?? "帮我把这段话翻译成英语：老铁 666";
-await new AgentsInWorkFlow(modelProvider).RunBranchingWorkflow(input);
+//string input = Console.ReadLine()?? "帮我把这段话翻译成英语：老铁 666";
+await new AgentsInWorkFlow(modelProvider).ConcurrentRun();
+
+//await new BranchesWorkFlow(modelProvider).Run();
 
 public class ModelProvider
 {
