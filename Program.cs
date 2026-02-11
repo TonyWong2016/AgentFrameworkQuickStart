@@ -52,9 +52,10 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 //简单工作流
 //await new SequentialFlow().Run();
 //string input = Console.ReadLine()?? "帮我把这段话翻译成英语：老铁 666";
-await new AgentsInWorkFlow(modelProvider).ConcurrentRun();
+//await new AgentsInWorkFlow(modelProvider).ConcurrentRun();
+//await new CarQueryConcurrentWorkFlow(modelProvider).Run();
 
-//await new BranchesWorkFlow(modelProvider).Run();
+await new BranchesWorkFlow(modelProvider).Run();
 
 public class ModelProvider
 {

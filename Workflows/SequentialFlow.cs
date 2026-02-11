@@ -13,11 +13,13 @@ namespace AgentFrameworkQuickStart.Workflows
             Func<string, string> uppercaseFunc = s => s.ToUpperInvariant();
             var uppercase = uppercaseFunc.BindAsExecutor("UppercaseExecutor");
 
-            ReverseTextExecutor reverse = new();
+            Func<string, string> reverseFunc = s => string.Concat(s.Reverse());
+            var reversecase = reverseFunc.BindAsExecutor("ReversecaseExecutor");
+            //ReverseTextExecutor reverse = new();
 
             // Build the workflow by connecting executors sequentially
             WorkflowBuilder builder = new(uppercase);
-            builder.AddEdge(uppercase, reverse).WithOutputFrom(reverse);
+            builder.AddEdge(uppercase, reversecase).WithOutputFrom(reversecase);
             var workflow = builder.Build();
 
             // Execute the workflow with input data

@@ -5,6 +5,7 @@ using OpenAI;
 using OpenAI.Chat;
 using Spectre.Console;
 using System.ClientModel;
+using System.Collections;
 using System.Text.Json;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 
@@ -100,7 +101,7 @@ namespace AgentFrameworkQuickStart.Workflows
                 Description = $"负责翻译成{targetLanguage}的专业Agent"
             };
 
-            return new ChatClientAgent(chatClient, instructions, options.Name,options.Description);
+            return new ChatClientAgent(chatClient, instructions, options.Name, options.Description);
         }
 
         public async Task ConcurrentRun()
@@ -113,15 +114,15 @@ namespace AgentFrameworkQuickStart.Workflows
             var chatClient = openAIClient.GetChatClient(_modelProvider.ModelId).AsIChatClient();
 
             // Create the executors
-            ChatClientAgent physicist = new(
+            var physicist = new RoleExecutor (
+                "物理学家",
                 chatClient,
-                name: "物理学家",
-                instructions: "你是物理学专家。你从物理角度回答问题."
+                 "你是物理学专家。你从物理角度回答问题."
             );
-            ChatClientAgent chemist = new(
+            var chemist = new RoleExecutor(
+                "化学家",
                 chatClient,
-                name: "化学家",
-                instructions: "你是化学专家。你从化学角度回答问题."
+                 "你是化学专家。你从化学角度回答问题."
             );
 
             var startExecutor = new ConcurrentStartExecutor();
@@ -134,16 +135,39 @@ namespace AgentFrameworkQuickStart.Workflows
                 .WithOutputFrom(aggregationExecutor)
                 .Build();
 
+            var testInput = new TestDto()
+            {
+                Question = "什么是温度"
+            };
             // Execute the workflow in streaming mode
-            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, input: "今天天气如何？");
+            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, "简明扼要的解释下什么是温度");
             await foreach (WorkflowEvent evt in run.WatchStreamAsync())
             {
-                Console.WriteLine(evt);
                 if (evt is WorkflowOutputEvent output)
                 {
-                    Console.WriteLine($"Workflow completed with results:\n{output.Data}");
+                    AnsiConsole.WriteLine("📰 汇总输出：");
+                    AnsiConsole.MarkupLine($"[yellow]{output.Data} [/]");
                 }
+                //switch (evt)
+                //{
+                //    case ExecutorInvokedEvent started:
+                //        AnsiConsole.WriteLine($"===【{started.ExecutorId}】开始运行,{DateTime.Now}===");
+                //        break;
+                //    case ExecutorCompletedEvent completed:
+                //        AnsiConsole.WriteLine($"==={completed.ExecutorId} 结束运行,{DateTime.Now}===");
+                //        break;
+                //    case WorkflowOutputEvent outputEvent:
+                //        AnsiConsole.WriteLine("📰 汇总输出：");
+                //        AnsiConsole.MarkupLine($"[yellow]{outputEvent.Data} [/]");
+                //        break;
+                //    case WorkflowErrorEvent errorEvent:
+                //        AnsiConsole.WriteLine("❌ 收到 Workflow Error Event：");
+                //        AnsiConsole.WriteLine($"{errorEvent.Data}");
+                //        break;
+                //}
             }
+            AnsiConsole.MarkupLine($"[green] 全部输出完成[/]");
+
         }
 
 
@@ -252,42 +276,38 @@ namespace AgentFrameworkQuickStart.Workflows
         public string TargetLanguage { get; set; } = string.Empty;
     }
 
+    public class TestDto
+    {
+        public string Question { get; set; } = "简明扼要的解释下什么是温度？";
+    }
+
     /// <summary>
     /// Executor that starts the concurrent processing by sending messages to the agents.
     /// </summary>
-    internal sealed partial class ConcurrentStartExecutor : Executor<string>
+    internal sealed partial class ConcurrentStartExecutor() : Executor<string>(nameof(ConcurrentStartExecutor))
     {
-        public ConcurrentStartExecutor() : base("ConcurrentStartExecutor")
-        {
-        }
-
         /// <summary>
         /// Starts the concurrent processing by broadcasting the message and a turn token.
         /// </summary>
         public override async ValueTask HandleAsync(string message, IWorkflowContext context, CancellationToken cancellationToken = default)
         {
+            var userPrompt = $"问题：{message}";
             // 广播用户消息给所有监听者（通常是多个 Agent）
-            await context.SendMessageAsync(new ChatMessage(ChatRole.User, message), cancellationToken: cancellationToken);
+            await context.SendMessageAsync(new ChatMessage(ChatRole.User, userPrompt), cancellationToken: cancellationToken);
 
             // 发送 TurnToken 触发所有监听者开始处理
             await context.SendMessageAsync(new TurnToken(emitEvents: true), cancellationToken: cancellationToken);
+
+            AnsiConsole.MarkupLine("[cyan] 📢 广播已发送 [/]");
         }
 
-        // 必须重写，即使不使用路由
-        protected override RouteBuilder ConfigureRoutes(RouteBuilder routeBuilder)
-        {
-            // 返回原 builder，表示无额外路由配置
-            return routeBuilder;
-        }
     }
-
-
 
     /// <summary>
     /// Executor that aggregates the results from the concurrent agents.
     /// </summary>
     internal sealed class ConcurrentAggregationExecutor() :
-        Executor<List<ChatMessage>>("ConcurrentAggregationExecutor")
+        Executor<ChatMessage>("ConcurrentAggregationExecutor")
     {
         private readonly List<ChatMessage> _messages = [];
 
@@ -299,17 +319,45 @@ namespace AgentFrameworkQuickStart.Workflows
         /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests.
         /// The default is <see cref="CancellationToken.None"/>.</param>
         /// <returns>A task representing the asynchronous operation</returns>
-        public override async ValueTask HandleAsync(List<ChatMessage> message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        public override async ValueTask HandleAsync(ChatMessage message, IWorkflowContext context, CancellationToken cancellationToken = default)
         {
-            this._messages.AddRange(message);
-
+            this._messages.Add(message);
+            AnsiConsole.MarkupLine($"[cyan] 已收集 {_messages.Count}个问题数据 - 来自 {message.AuthorName} [/]");
             if (this._messages.Count == 2)
             {
                 var formattedMessages = string.Join(Environment.NewLine, this._messages.Select(m => $"{m.AuthorName}: {m.Text}"));
+                //string summaryOutput = $"{formattedMessages},请从不同角色出发，各自回答这个问题，不要太啰嗦，简明扼要即可";
                 await context.YieldOutputAsync(formattedMessages, cancellationToken);
             }
+            
         }
     }
 
+
+
+    internal sealed class RoleExecutor : Executor<ChatMessage>
+    {
+        private readonly string _instructions;
+        private readonly IChatClient _chatClient;
+        public RoleExecutor(string id, IChatClient chatClient, string instructions) : base(id)
+        {
+            _chatClient = chatClient;
+            _instructions = instructions;
+        }
+        public override async ValueTask HandleAsync(ChatMessage message, IWorkflowContext context, CancellationToken cancellationToken = default)
+        {
+            var messages = new List<ChatMessage>
+            {
+                new(ChatRole.System, _instructions),
+                message
+            };
+            var response = await _chatClient.GetResponseAsync(messages, cancellationToken: cancellationToken);
+            var replyMessage = new ChatMessage(ChatRole.Assistant, response.Text ?? string.Empty) 
+            { AuthorName = this.Id };
+            await context.SendMessageAsync(replyMessage, cancellationToken: cancellationToken);
+            AnsiConsole.MarkupLine($"[green] {this.Id}，任务接受完毕[/]");
+
+        }
+    }
 
 }

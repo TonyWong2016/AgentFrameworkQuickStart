@@ -57,8 +57,8 @@ namespace AgentFrameworkQuickStart.Workflows
 
             // Read a email from a text file
             //string email = "对于外贸从业者来说，海关数据是非常宝贵的信息资源，但是你真的会用它找到精准客户吗？\r\n\r\n网易外贸通的「海关数据」结合网易AI大模型后，能够深度分析市场供需行情，直接在海关数据中找到商机，并匹配客户最新联系方式！点击这里，我将为您演示网易外贸通海关数据与普通海关数据开发客户的区别>> 文末可免费获取定制版《2026精准采购/供应商报告》";
-            string email = "Congratulations! You've won $1,000,000! Click here to claim your prize now!";
-            //string email = "嗨，我想跟进一下我们昨天的会议，并了解一下您对项目提案的看法。";
+            //string email = "Congratulations! You've won $1,000,000! Click here to claim your prize now!";
+            string email = "Hi, I wanted to follow up on our meeting yesterday and get your thoughts on the project proposal.";
             // Execute the workflow
             await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, email));
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
@@ -66,7 +66,7 @@ namespace AgentFrameworkQuickStart.Workflows
             {
                 if (evt is WorkflowOutputEvent outputEvent)
                 {
-                    Console.WriteLine($"{outputEvent}");
+                    AnsiConsole.MarkupLine($"[cyan]{outputEvent}[/]");
                 }
             }
         }
