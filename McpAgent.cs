@@ -22,7 +22,8 @@ namespace AgentFrameworkQuickStart
                     new ApiKeyCredential(modelProvider.ApiKey),
                     new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                 .GetChatClient(modelProvider.ModelId)
-                .CreateAIAgent(instructions: "你是个笑话大师.", name: "笑话大师");
+                .AsIChatClient()
+                .AsAIAgent(instructions: "你是个笑话大师.", name: "笑话大师");
             var jokerMcpTool = McpServerTool.Create(agent.AsAIFunction());
             var builder = Host.CreateEmptyApplicationBuilder(settings: null);
             builder.Services

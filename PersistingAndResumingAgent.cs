@@ -1,5 +1,7 @@
 ﻿using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using OpenAI;
+using OpenAI.Chat;
 using System;
 using System.ClientModel;
 using System.Collections.Generic;
@@ -20,27 +22,28 @@ namespace AgentFrameworkQuickStart
 
         public async Task PersistAndResumeDemo()
         {
-            var agent = new OpenAIClient(
+            AIAgent agent = new OpenAIClient(
                 new ApiKeyCredential(modelProvider.ApiKey),
                 new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                 .GetChatClient(modelProvider.ModelId)
-                .CreateAIAgent(instructions: "你是个脱口秀大师，可以很轻松的逗笑大家.", name: "脱口秀大师");
+                .AsIChatClient()
+                .AsAIAgent(instructions: "你是个脱口秀大师，可以很轻松的逗笑大家.", name: "脱口秀大师");
 
 
-            // 2. 尝试从文件加载已有线程；若无，则新建
-            AgentThread thread;
+            // 2. 尝试从文件加载已有 session；若无，则新建
+            AgentSession session;
             if (File.Exists(threadFilePath))
             {
                 Console.WriteLine("🔍 检测到已保存的对话，正在恢复...");
                 string json = await File.ReadAllTextAsync(threadFilePath);
                 var jsonElement = JsonSerializer.Deserialize<JsonElement>(json, JsonSerializerOptions.Web);
-                thread = agent.DeserializeThread(jsonElement, JsonSerializerOptions.Web);
+                session = await agent.DeserializeSessionAsync(jsonElement);
                 Console.WriteLine("✅ 对话已恢复！");
             }
             else
             {
                 Console.WriteLine("🆕 开始新对话...");
-                thread = agent.GetNewThread();
+                session = await agent.CreateSessionAsync();
             }
 
             // 3. 获取用户输入并交互
@@ -53,8 +56,8 @@ namespace AgentFrameworkQuickStart
 
                 if (input.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
-                    // 保存当前线程后退出
-                    var serialized = thread.Serialize(JsonSerializerOptions.Web);
+                    // 保存当前 session 后退出
+                    var serialized = await agent.SerializeSessionAsync(session);
                     await File.WriteAllTextAsync(threadFilePath, serialized.GetRawText());
                     Console.WriteLine("💾 对话已保存，再见！");
                     break;
@@ -62,9 +65,9 @@ namespace AgentFrameworkQuickStart
 
                 if (input.Equals("clear", StringComparison.OrdinalIgnoreCase))
                 {
-                    // 清除历史：删除文件 + 新建线程
+                    // 清除历史：删除文件 + 新建 session
                     if (File.Exists(threadFilePath)) File.Delete(threadFilePath);
-                    thread = agent.GetNewThread();
+                    session = await agent.CreateSessionAsync();
                     Console.WriteLine("🧹 对话历史已清除，开启全新对话！");
                     continue;
                 }
@@ -72,7 +75,7 @@ namespace AgentFrameworkQuickStart
                 // 4. 调用代理生成回复
                 try
                 {
-                    var response = await agent.RunAsync(input, thread);
+                    var response = await agent.RunAsync(input, session);
                     Console.WriteLine($"\n🎭 脱口秀大师: {response}");
                 }
                 catch (Exception ex)
@@ -81,8 +84,8 @@ namespace AgentFrameworkQuickStart
                     continue;
                 }
 
-                // 5. 自动保存线程（每次交互后都保存，确保不丢上下文）
-                var updatedJson = thread.Serialize(JsonSerializerOptions.Web).GetRawText();
+                // 5. 自动保存 session（每次交互后都保存，确保不丢上下文）
+                var updatedJson = (await agent.SerializeSessionAsync(session)).GetRawText();
                 await File.WriteAllTextAsync(threadFilePath, updatedJson);
             }
         }

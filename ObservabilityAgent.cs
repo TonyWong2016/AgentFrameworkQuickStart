@@ -1,6 +1,8 @@
 ﻿using Azure.AI.OpenAI;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using OpenAI;
+using OpenAI.Chat;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
 using System;
@@ -27,7 +29,8 @@ namespace AgentFrameworkQuickStart
                new ApiKeyCredential(modelProvider.ApiKey),
                new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                .GetChatClient(modelProvider.ModelId)
-               .CreateAIAgent(instructions: "你是个资深汽车大师，了解很多汽车知识，包括配置，价格，驾驶体验的等等，回复内容尽可能简短高效，突出优缺点，给出综合购买建议，避免长篇大论", name: "汽车大师")
+               .AsIChatClient()
+               .AsAIAgent(instructions: "你是个脱口秀大师，可以很轻松的逗笑大家", name: "脱口秀大师")
                .AsBuilder()
                .UseOpenTelemetry(sourceName: "agent-telemetry-source")
                .Build();

@@ -27,8 +27,8 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 //var agent = new InMemoryChatHistoryAgent(modelProvider, "inmem_thread.json");
 //await agent.RunInteractiveChatAsync();
 
-//var carAgent = new CarMasterAgent(modelProvider);
-//await carAgent.RunMasterStreamAsync();
+var carAgent = new CarMasterAgent(modelProvider);
+await carAgent.RunMasterStreamAsync();
 //await carAgent.RunMasterWithToolsAsync();
 
 // 2. 实例化工作流（与InMemoryChatHistoryAgent模式一致）
@@ -56,6 +56,12 @@ Console.WriteLine($"正在使用【${modelProvider.ModelId}】模型",ConsoleCol
 //await new CarQueryConcurrentWorkFlow(modelProvider).Run();
 
 await new BranchesWorkFlow(modelProvider).Run();
+//    //await carMasterWorkflow.ExecuteAsync(userQuestion);
+//    await carMasterWorkflow.RunCarMasterWorkflowFinalFinalAsync(userQuestion);
+//    AnsiConsole.WriteLine(); // 空行分隔每次对话
+//}
+
+//await new SequentialFlow().Run();
 
 public class ModelProvider
 {

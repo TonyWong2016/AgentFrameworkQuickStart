@@ -8,53 +8,34 @@ using System.Text.Json;
 
 namespace AgentFrameworkQuickStart
 {
-    public sealed class VectorChatMessageStore : ChatMessageStore
+    public sealed class VectorChatHistoryProvider : ChatHistoryProvider
     {
         private readonly VectorStore _vectorStore;
-        public string? ThreadDbKey { get; private set; }
+        private readonly ProviderSessionState<State> _sessionState;
 
-        // 用于反序列化恢复状态
-        public VectorChatMessageStore(
-            VectorStore vectorStore,
-            JsonElement serializedStoreState,
-            JsonSerializerOptions? jsonSerializerOptions = null)
+        public VectorChatHistoryProvider(VectorStore vectorStore, Func<AgentSession?, State>? stateInitializer = null)
         {
             _vectorStore = vectorStore ?? throw new ArgumentNullException(nameof(vectorStore));
-            if (serializedStoreState.ValueKind == JsonValueKind.String)
-                ThreadDbKey = serializedStoreState.Deserialize<string>();
+            _sessionState = new ProviderSessionState<State>(
+                stateInitializer ?? (_ => new State()),
+                this.GetType().Name);
         }
 
-        public override async Task AddMessagesAsync(
-        IEnumerable<ChatMessage> messages,
-        CancellationToken cancellationToken = default)
+        public string StateKey => _sessionState.StateKey;
+
+        protected override async ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(InvokingContext context, CancellationToken cancellationToken = default)
         {
-            // 首次调用时生成唯一线程 ID
-            ThreadDbKey ??= Guid.NewGuid().ToString("N");
+            var state = _sessionState.GetOrInitializeState(context.Session);
+
+            if (string.IsNullOrEmpty(state.ThreadDbKey))
+                return [];
 
             var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
             await collection.EnsureCollectionExistsAsync(cancellationToken);
 
-            await collection.UpsertAsync(
-                messages.Select(msg => new ChatHistoryItem
-                {
-                    Key = $"{ThreadDbKey}_{msg.MessageId}",
-                    ThreadId = ThreadDbKey,
-                    Timestamp = DateTimeOffset.UtcNow,
-                    SerializedMessage = JsonSerializer.Serialize(msg),
-                    MessageText = msg.Text
-                }),
-                cancellationToken);
-        }
-
-        public override async Task<IEnumerable<ChatMessage>> GetMessagesAsync(
-        CancellationToken cancellationToken = default)
-        {
-            var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
-            await collection.EnsureCollectionExistsAsync(cancellationToken);
-
-            // 按时间倒序取最新 N 条（示例取 10 条）
+            // 按时间倒序取最新 10 条
             var records = collection.GetAsync(
-                filter: x => x.ThreadId == ThreadDbKey,
+                filter: x => x.ThreadId == state.ThreadDbKey,
                 top: 10,
                 options: new() { OrderBy = x => x.Descending(y => y.Timestamp) },
                 cancellationToken);
@@ -65,14 +46,37 @@ namespace AgentFrameworkQuickStart
                 messages.Add(JsonSerializer.Deserialize<ChatMessage>(record.SerializedMessage!)!);
             }
 
-            // 注意：必须按时间升序返回（旧 → 新）
+            // 必须按时间升序返回（旧 → 新）
             messages.Reverse();
             return messages;
         }
 
-        // 序列化状态：只需保存 ThreadDbKey
-        public override JsonElement Serialize(JsonSerializerOptions? options = null)
-            => JsonSerializer.SerializeToElement(ThreadDbKey);
+        protected override async ValueTask StoreChatHistoryAsync(InvokedContext context, CancellationToken cancellationToken = default)
+        {
+            var state = _sessionState.GetOrInitializeState(context.Session);
+
+            // 首次调用时生成唯一线程 ID
+            state.ThreadDbKey ??= Guid.NewGuid().ToString("N");
+
+            var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
+            await collection.EnsureCollectionExistsAsync(cancellationToken);
+
+            // 合并请求和响应消息
+            var allNewMessages = context.RequestMessages.Concat(context.ResponseMessages ?? []);
+
+            await collection.UpsertAsync(
+                allNewMessages.Select(msg => new ChatHistoryItem
+                {
+                    Key = $"{state.ThreadDbKey}_{msg.MessageId}",
+                    ThreadId = state.ThreadDbKey,
+                    Timestamp = DateTimeOffset.UtcNow,
+                    SerializedMessage = JsonSerializer.Serialize(msg),
+                    MessageText = msg.Text
+                }),
+                cancellationToken);
+
+            _sessionState.SaveState(context.Session, state);
+        }
 
         // 数据模型（用于向量存储）
         private sealed class ChatHistoryItem
@@ -82,6 +86,11 @@ namespace AgentFrameworkQuickStart
             [VectorStoreData] public DateTimeOffset? Timestamp { get; set; }
             [VectorStoreData] public string? SerializedMessage { get; set; }
             [VectorStoreData] public string? MessageText { get; set; }
+        }
+
+        public sealed class State
+        {
+            public string? ThreadDbKey { get; set; }
         }
     }
 }

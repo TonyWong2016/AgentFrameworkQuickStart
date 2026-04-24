@@ -19,7 +19,8 @@ namespace AgentFrameworkQuickStart
                 new ApiKeyCredential(modelProvider.ApiKey),
                 new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                 .GetChatClient(modelProvider.ModelId)
-                .CreateAIAgent(instructions: "你是个脱口秀大师，可以很轻松的逗笑大家.", name: "脱口秀大师");
+                .AsIChatClient()
+                .AsAIAgent(instructions: "你是个脱口秀大师，可以很轻松的逗笑大家.", name: "脱口秀大师");
 
             await foreach (var update in agent.RunStreamingAsync("来一段简短的脱口秀表演"))
             {
@@ -33,7 +34,8 @@ namespace AgentFrameworkQuickStart
                 new ApiKeyCredential(modelProvider.ApiKey),
                 new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                 .GetChatClient(modelProvider.ModelId)
-                .CreateAIAgent(instructions: "你是一个能够分析图像的实用助手。.", name: "视觉代理");
+                .AsIChatClient()
+                .AsAIAgent(instructions: "你是一个能够分析图像的实用助手。.", name: "视觉代理");
 
             ChatMessage message = new ChatMessage(ChatRole.User, [
                 new TextContent("你在这张图片中看到了什么？"),
@@ -53,7 +55,8 @@ namespace AgentFrameworkQuickStart
                 new ApiKeyCredential(modelProvider.ApiKey),
                 new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                 .GetChatClient(modelProvider.ModelId)
-                .CreateAIAgent(instructions: "你是一个智能助手。", tools: [AIFunctionFactory.Create(GetWeather)]);
+                .AsIChatClient()
+                .AsAIAgent(instructions: "你是一个智能助手。", tools: [AIFunctionFactory.Create(GetWeather)]);
 
             Console.WriteLine(await agent.RunAsync("保定的天气怎么样?"));
 
@@ -70,19 +73,20 @@ namespace AgentFrameworkQuickStart
                 new ApiKeyCredential(modelProvider.ApiKey),
                 new OpenAIClientOptions { Endpoint = new Uri(modelProvider.Endpoint) })
                 .GetChatClient(modelProvider.ModelId)
-                .CreateAIAgent(instructions: "你是一个智能助手。", tools: [approvalRequiredWeatherFunction]);
+                .AsIChatClient()
+                .AsAIAgent(instructions: "你是一个智能助手。", tools: [approvalRequiredWeatherFunction]);
 
-            AgentThread thread = agent.GetNewThread();
-            AgentRunResponse response = await agent.RunAsync("保定的天气如何?", thread);
+            AgentSession session = await agent.CreateSessionAsync();
+            AgentResponse response = await agent.RunAsync("保定的天气如何?", session);
 
             var functionApprovalRequests = response.Messages
                 .SelectMany(x => x.Contents)
-                .OfType<FunctionApprovalRequestContent>()
+                .OfType<ToolApprovalRequestContent>()
                 .ToList();
-            FunctionApprovalRequestContent requestContent = functionApprovalRequests.First();
-            Console.WriteLine($"我需要您的批准才能执行 '{requestContent.FunctionCall.Name}'");
+            ToolApprovalRequestContent requestContent = functionApprovalRequests.First();
+            Console.WriteLine($"我需要您的批准才能执行 '{requestContent.ToolCall}'");
             var approvalMessage = new ChatMessage(ChatRole.User, [requestContent.CreateResponse(true)]);
-            Console.WriteLine(await agent.RunAsync(approvalMessage, thread));
+            Console.WriteLine(await agent.RunAsync(approvalMessage, session));
 #pragma warning restore MEAI001 // 类型仅用于评估，在将来的更新中可能会被更改或删除。取消此诊断以继续。
 
         }

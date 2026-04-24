@@ -5,6 +5,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.InMemory;
 using OpenAI;
+using OpenAI.Chat;
 using Spectre.Console;
 using System.ClientModel;
 using System.Text.Json;
@@ -15,7 +16,6 @@ public class InMemoryChatHistoryAgent
 {
     private readonly ModelProvider _modelProvider;
     private readonly string _threadStatePath;
-    private readonly VectorStore _vectorStore = new InMemoryVectorStore();
 
     public InMemoryChatHistoryAgent(ModelProvider modelProvider, string threadStateFileName = "thread_state.json")
     {
@@ -26,32 +26,34 @@ public class InMemoryChatHistoryAgent
     public async Task RunInteractiveChatAsync()
     {
         // 1. 创建带自定义消息存储的 Agent
-        var agent = new OpenAIClient(
-                new ApiKeyCredential(_modelProvider.ApiKey),
-                new OpenAIClientOptions { Endpoint = new Uri(_modelProvider.Endpoint) })
-            .GetChatClient(_modelProvider.ModelId)
-            .CreateAIAgent(
-            new ChatClientAgentOptions
+        AIAgent agent = new OpenAIClient(
+            new ApiKeyCredential(_modelProvider.ApiKey),
+            new OpenAIClientOptions { Endpoint = new Uri(_modelProvider.Endpoint) })
+        .GetChatClient(_modelProvider.ModelId)
+        .AsIChatClient()
+        .AsAIAgent(
+        new ChatClientAgentOptions
+        {
+            Name = "记忆大师",
+            ChatOptions = new ChatOptions
             {
-                Name = "记忆大师",
-                Description = "你是一个有长期记忆的助手，能记住之前的对话。",
-                ChatMessageStoreFactory = ctx => new VectorChatMessageStore(_vectorStore, ctx.SerializedState, ctx.JsonSerializerOptions)
-            });
+                Instructions = "你是一个有长期记忆的助手，能记住之前的对话。"
+            }
+        });
 
-
-        // 2. 尝试恢复线程
-        AgentThread thread;
+        // 2. 尝试恢复 session
+        AgentSession session;
         if (File.Exists(_threadStatePath))
         {
             Console.WriteLine("检测到已保存的对话状态，正在恢复...");
             string json = await File.ReadAllTextAsync(_threadStatePath);
             var element = JsonSerializer.Deserialize<JsonElement>(json, JsonSerializerOptions.Web);
             thread = agent.DeserializeThread(element, JsonSerializerOptions.Web);
-            Console.WriteLine("对话已恢复！");
+            Console.WriteLine("✅ 对话已恢复！");
         }
         else
         {
-            Console.WriteLine("开始新对话（使用 InMemory 向量存储记录历史）...");
+            Console.WriteLine("🆕 开始新对话（使用 InMemory 向量存储记录历史）...");
             thread = agent.GetNewThread();
         }
 
@@ -68,23 +70,23 @@ public class InMemoryChatHistoryAgent
                 // 保存线程状态（仅元数据，消息存在 vector store）
                 var state = thread.Serialize(JsonSerializerOptions.Web).GetRawText();
                 await File.WriteAllTextAsync(_threadStatePath, state);
-                Console.WriteLine("线程状态已保存，再见！");
+                Console.WriteLine("💾 线程状态已保存，再见！");
                 break;
             }
 
             if (input.Equals("clear", StringComparison.OrdinalIgnoreCase))
             {
-                // 清除：删除状态文件 + 新建线程（旧消息仍留在 vector store，但无法访问）
+                // 清除：删除状态文件 + 新建 session
                 if (File.Exists(_threadStatePath)) File.Delete(_threadStatePath);
                 thread = agent.GetNewThread();
-                Console.WriteLine("已开启全新对话（旧历史不可见）");
+                Console.WriteLine("🧹 已开启全新对话（旧历史不可见）");
                 continue;
             }
 
             try
             {
                 var response = await agent.RunAsync(input, thread);
-                Console.WriteLine($"\n助手: {response}");
+                Console.WriteLine($"\n🤖 助手: {response}");
             }
             catch (Exception ex)
             {
@@ -120,7 +122,7 @@ public class InMemoryChatHistoryAgent
         {
             ThreadDbKey ??= Guid.NewGuid().ToString("N");
 
-            AnsiConsole.MarkupLine($"[cyan]【Add】 ThreadKey: {ThreadDbKey}, 消息数: {messages.Count()}[/]");
+            AnsiConsole.MarkupLine($"💾 [cyan]【Add】 ThreadKey: {ThreadDbKey}, 消息数: {messages.Count()}[/]");
 
             var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
             await collection.EnsureCollectionExistsAsync(cancellationToken);
@@ -143,7 +145,7 @@ public class InMemoryChatHistoryAgent
             if (string.IsNullOrEmpty(ThreadDbKey))
                 return [];
 
-            AnsiConsole.MarkupLine($"[yellow]【Get】 从 ThreadKey: {ThreadDbKey} 读取消息[/]");
+            AnsiConsole.MarkupLine($"📥 [yellow]【Get】 从 ThreadKey: {ThreadDbKey} 读取消息[/]");
 
 
             var collection = _vectorStore.GetCollection<string, ChatHistoryItem>("ChatHistory");
