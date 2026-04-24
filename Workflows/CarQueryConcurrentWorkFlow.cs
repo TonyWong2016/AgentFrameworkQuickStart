@@ -39,7 +39,9 @@ namespace AgentFrameworkQuickStart.Workflows
 
             var workflow = new WorkflowBuilder(startExecutor)
                 .AddFanOutEdge(startExecutor, [amazonExecutor, ebayExecutor, shopeeExecutor])
-                .AddFanInEdge([amazonExecutor, ebayExecutor, shopeeExecutor], strategyExecutor)
+                .AddEdge(amazonExecutor, strategyExecutor)
+                .AddEdge(ebayExecutor, strategyExecutor)
+                .AddEdge(shopeeExecutor, strategyExecutor)
                 .WithOutputFrom(strategyExecutor)
                 .Build();
 
@@ -47,7 +49,7 @@ namespace AgentFrameworkQuickStart.Workflows
 
             var priceQuery = new PriceQueryDto(productId: "IPHONE15-PRO-256", productName: "iPhone 15 Pro 256GB", targetRegion: "US");
 
-            await using (var run = await InProcessExecution.StreamAsync(workflow, priceQuery))
+            await using (var run = await InProcessExecution.RunStreamingAsync(workflow, priceQuery))
             {
                 await foreach (var evt in run.WatchStreamAsync())
                 {
@@ -59,12 +61,12 @@ namespace AgentFrameworkQuickStart.Workflows
                         case ExecutorCompletedEvent completed:
                             Console.WriteLine($"✅ {completed.ExecutorId} 结束运行");
                             break;
-                        case WorkflowOutputEvent outputEvent: 
-                            Console.WriteLine("🎉 Fan-in 汇总输出："); 
+                        case WorkflowOutputEvent outputEvent:
+                            Console.WriteLine("🎉 Fan-in 汇总输出：");
                             Console.WriteLine($"{outputEvent.Data}");
                             break;
-                        case WorkflowErrorEvent errorEvent: 
-                            Console.WriteLine("✨ 收到 Workflow Error Event："); 
+                        case WorkflowErrorEvent errorEvent:
+                            Console.WriteLine("✨ 收到 Workflow Error Event：");
                             Console.WriteLine($"{errorEvent.Data}");
                             break;
                     }

@@ -44,7 +44,7 @@ namespace AgentFrameworkQuickStart.Workflows
             AnsiConsole.MarkupLine($"[grey]原始输入:[/] 哈喽啊老铁，啥时候来保定转转啊");
             AnsiConsole.WriteLine();
 
-            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, new ChatMessage(ChatRole.User, "哈喽啊老铁，啥时候来保定转转啊"));
+            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(workflow, new ChatMessage(ChatRole.User, "哈喽啊老铁，啥时候来保定转转啊"));
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
 
             // 记录当前正在工作的 Agent ID
@@ -66,7 +66,7 @@ namespace AgentFrameworkQuickStart.Workflows
                 }
 
                 // 监听流式更新事件：处理具体的文字输出
-                if (evt is AgentRunUpdateEvent update)
+                if (evt is AgentResponseUpdateEvent update)
                 {
                     if (update.Data == null) continue;
 
@@ -114,7 +114,7 @@ namespace AgentFrameworkQuickStart.Workflows
             var chatClient = openAIClient.GetChatClient(_modelProvider.ModelId).AsIChatClient();
 
             // Create the executors
-            var physicist = new RoleExecutor (
+            var physicist = new RoleExecutor(
                 "物理学家",
                 chatClient,
                  "你是物理学专家。你从物理角度回答问题."
@@ -131,7 +131,8 @@ namespace AgentFrameworkQuickStart.Workflows
             // Build the workflow by adding executors and connecting them
             var workflow = new WorkflowBuilder(startExecutor)
                 .AddFanOutEdge(startExecutor, [physicist, chemist])
-                .AddFanInEdge([physicist, chemist], aggregationExecutor)
+                .AddEdge(physicist, aggregationExecutor)
+                .AddEdge(chemist, aggregationExecutor)
                 .WithOutputFrom(aggregationExecutor)
                 .Build();
 
@@ -140,7 +141,7 @@ namespace AgentFrameworkQuickStart.Workflows
                 Question = "什么是温度"
             };
             // Execute the workflow in streaming mode
-            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, "简明扼要的解释下什么是温度");
+            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(workflow, "简明扼要的解释下什么是温度");
             await foreach (WorkflowEvent evt in run.WatchStreamAsync())
             {
                 if (evt is WorkflowOutputEvent output)
@@ -222,7 +223,7 @@ namespace AgentFrameworkQuickStart.Workflows
             // --- 执行与 Spectre.Console 展示 ---
             AnsiConsole.Write(new Rule("[bold cyan]分路路由工作流启动[/]").LeftJustified());
 
-            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, new ChatMessage(ChatRole.User, userInput));
+            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(workflow, new ChatMessage(ChatRole.User, userInput));
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
 
             string lastAgentId = string.Empty;
@@ -241,7 +242,7 @@ namespace AgentFrameworkQuickStart.Workflows
                     }
                 }
 
-                if (evt is AgentRunUpdateEvent update && update.Data != null)
+                if (evt is AgentResponseUpdateEvent update && update.Data != null)
                 {
                     AnsiConsole.Write(update.Data.ToString());
                 }
@@ -329,7 +330,7 @@ namespace AgentFrameworkQuickStart.Workflows
                 //string summaryOutput = $"{formattedMessages},请从不同角色出发，各自回答这个问题，不要太啰嗦，简明扼要即可";
                 await context.YieldOutputAsync(formattedMessages, cancellationToken);
             }
-            
+
         }
     }
 
@@ -352,7 +353,7 @@ namespace AgentFrameworkQuickStart.Workflows
                 message
             };
             var response = await _chatClient.GetResponseAsync(messages, cancellationToken: cancellationToken);
-            var replyMessage = new ChatMessage(ChatRole.Assistant, response.Text ?? string.Empty) 
+            var replyMessage = new ChatMessage(ChatRole.Assistant, response.Text ?? string.Empty)
             { AuthorName = this.Id };
             await context.SendMessageAsync(replyMessage, cancellationToken: cancellationToken);
             AnsiConsole.MarkupLine($"[green] {this.Id}，任务接受完毕[/]");

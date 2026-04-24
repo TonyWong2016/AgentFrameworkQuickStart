@@ -31,7 +31,7 @@ namespace AgentFrameworkQuickStart.Workflows
             //        Console.WriteLine($"{executorComplete.ExecutorId}: {executorComplete.Data}");
             //    }
             //}
-            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, input: "Yo,老铁!");
+            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(workflow, input: "Yo,老铁!");
             await foreach (WorkflowEvent evt in run.WatchStreamAsync())
             {
                 if (evt is ExecutorCompletedEvent executorCompleted)

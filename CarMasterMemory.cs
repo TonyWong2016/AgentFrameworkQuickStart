@@ -107,7 +107,7 @@ namespace AgentFrameworkQuickStart
                 catch (Exception)
                 {
                     // 调试用
-                     Console.WriteLine($"[DEBUG] 提取失败: {ex.Message}");
+                    // Console.WriteLine($"[DEBUG] 提取失败");
                 }
             }
         }

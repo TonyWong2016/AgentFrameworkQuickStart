@@ -15,7 +15,7 @@ using System.Text.Json.Serialization;
 namespace AgentFrameworkQuickStart.Workflows
 {
 
-    
+
 
     public class BranchesWorkFlow
     {
@@ -60,7 +60,7 @@ namespace AgentFrameworkQuickStart.Workflows
             //string email = "Congratulations! You've won $1,000,000! Click here to claim your prize now!";
             string email = "Hi, I wanted to follow up on our meeting yesterday and get your thoughts on the project proposal.";
             // Execute the workflow
-            await using StreamingRun run = await InProcessExecution.StreamAsync(workflow, new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, email));
+            await using StreamingRun run = await InProcessExecution.RunStreamingAsync(workflow, new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, email));
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
             await foreach (WorkflowEvent evt in run.WatchStreamAsync())
             {
@@ -74,7 +74,7 @@ namespace AgentFrameworkQuickStart.Workflows
         private static Func<object?, bool> GetCondition(bool expectedResult) =>
     detectionResult => detectionResult is DetectionResult result && result.IsSpam == expectedResult;
 
-        
+
 
         /// <summary>
         /// Creates a spam detection agent.
@@ -82,10 +82,10 @@ namespace AgentFrameworkQuickStart.Workflows
         /// <returns>A ChatClientAgent configured for spam detection</returns>
         private static ChatClientAgent GetSpamDetectionAgent(IChatClient chatClient) =>
             new(chatClient, new ChatClientAgentOptions()
-            {                
+            {
                 ChatOptions = new()
                 {
-                    Instructions= "You are a spam detection assistant that identifies spam emails.",
+                    Instructions = "You are a spam detection assistant that identifies spam emails.",
                     ResponseFormat = Microsoft.Extensions.AI.ChatResponseFormat.ForJsonSchema(AIJsonUtilities.CreateJsonSchema(typeof(DetectionResult)))
                 }
             });
